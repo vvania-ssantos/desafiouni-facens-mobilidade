@@ -21,12 +21,7 @@ st.caption("Central de Controle Urbano • Telemetria 5G URLLC • Simulação d
 def get_db_connection():
     try:
         conn = psycopg2.connect(
-            host=st.secrets["POSTGRES_HOST"],
-            database=st.secrets["POSTGRES_DB"],
-            user=st.secrets["POSTGRES_USER"],
-            password=st.secrets["POSTGRES_PASSWORD"],
-            port=st.secrets.get("POSTGRES_PORT", "5432"),
-            sslmode="require",  # Exigido pelo Neon.tech
+            st.secrets["POSTGRES_URL"],
             connect_timeout=5
         )
         return conn, None

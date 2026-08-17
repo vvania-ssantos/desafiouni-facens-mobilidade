@@ -51,9 +51,13 @@ if st.sidebar.button("🚪 Sair"):
 # ---------------------------------------------------------
 def get_db_connection():
     try:
-        # Garante a conexão direta SSL limpa
         conn = psycopg2.connect(
-            st.secrets["POSTGRES_URL"],
+            host=st.secrets["DB_HOST"],
+            database=st.secrets["DB_NAME"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASSWORD"],
+            port=st.secrets["DB_PORT"],
+            sslmode="require",
             connect_timeout=10
         )
         return conn, None

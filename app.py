@@ -14,12 +14,12 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# 1. CONTROLE DE ACESSO VIA GOOGLE OAUTH
+# 1. CONTROLE DE ACESSO VIA GOOGLE OAUTH (SEGURO)
 # ---------------------------------------------------------
-if hasattr(st, "user"):
-    is_logged_in = st.user.is_logged_in
-else:
-    is_logged_in = bool(st.experimental_user)
+try:
+    is_logged_in = st.experimental_user.is_logged_in
+except AttributeError:
+    is_logged_in = hasattr(st, "user") and bool(getattr(st.user, "email", None))
 
 if not is_logged_in:
     st.title("🚦 SIGABEM — Acesso Restrito")
@@ -32,14 +32,16 @@ if not is_logged_in:
 # ---------------------------------------------------------
 # 2. MENU LATERAL - DADOS DO USUÁRIO & SAIR
 # ---------------------------------------------------------
-user = st.user if hasattr(st, "user") else st.experimental_user
-user_name = getattr(user, 'name', user.email)
+user = st.experimental_user if hasattr(st, "experimental_user") else st.user
+user_email = getattr(user, "email", "Usuário Autenticado")
+user_name = getattr(user, "name", user_email)
+
 st.sidebar.write(f"👤 Logado como: **{user_name}**")
-st.sidebar.caption(f"E-mail: {user.email}")
+st.sidebar.caption(f"E-mail: {user_email}")
 
 if st.sidebar.button("Sair"):
     st.logout()
-
+    
 # ---------------------------------------------------------
 # 3. FUNÇÕES DE BANCO DE DADOS (POSTGRESQL / NEON.TECH)
 # ---------------------------------------------------------

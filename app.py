@@ -26,6 +26,7 @@ def get_db_connection():
             user=st.secrets["POSTGRES_USER"],
             password=st.secrets["POSTGRES_PASSWORD"],
             port=st.secrets.get("POSTGRES_PORT", "5432"),
+            sslmode="require",  # Exigido pelo Neon.tech
             connect_timeout=5
         )
         return conn, None

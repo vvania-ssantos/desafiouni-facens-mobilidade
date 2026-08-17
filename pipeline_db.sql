@@ -15,7 +15,7 @@ CREATE TABLE public.trafego_bruto (
 );
 
 -- 2. INGESTÃO DE ALTA PERFORMANCE (BULK INSERT)
--- Utilizamos o comando COPY para processar os milhões de registros com máxima eficiência
+-- Utilizamos o comando COPY para processar os registros com máxima eficiência
 -- Exemplo de comando executado via terminal PSQL:
 -- \copy public.trafego_bruto FROM 'caminho/para/parte_0.csv' WITH (FORMAT csv, DELIMITER ';', HEADER true, ENCODING 'utf8');
 

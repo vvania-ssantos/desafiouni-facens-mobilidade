@@ -1,0 +1,21 @@
+# ==========================================
+# IGNORES PARA O PROJETO SIGABEM (VS CODE & PYTHON)
+# ==========================================
+
+# Ambientes virtuais do Python (não devem ir para o GitHub)
+venv/
+.venv/
+env/
+
+# Arquivos compilados e caches do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Configurações locais do VS Code e ambiente
+.vscode/
+.env
+
+# Arquivos de banco locais e logs
+*.log
+*.sqlite3

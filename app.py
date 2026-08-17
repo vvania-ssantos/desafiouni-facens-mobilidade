@@ -26,7 +26,7 @@ if not is_logged_in:
     st.subheader("Gêmeo Digital & Central de Controle de Mobilidade Urbana")
     st.write("Por favor, faça login com sua conta do Google para acessar a Central de Controle.")
     if st.button("🔑 Entrar com Google"):
-        st.login()
+    st.login("google")
     st.stop()
 
 # ---------------------------------------------------------
@@ -41,7 +41,7 @@ st.sidebar.caption(f"E-mail: {user_email}")
 
 if st.sidebar.button("Sair"):
     st.logout()
-    
+
 # ---------------------------------------------------------
 # 3. FUNÇÕES DE BANCO DE DADOS (POSTGRESQL / NEON.TECH)
 # ---------------------------------------------------------

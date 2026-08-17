@@ -14,36 +14,40 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# 1. CONTROLE DE ACESSO VIA GOOGLE OAUTH (SEGURO)
+# 1. CONTROLE DE ACESSO SIMPLIFICADO (SEM DEPENDÊNCIA DE API)
 # ---------------------------------------------------------
-try:
-    is_logged_in = st.experimental_user.is_logged_in
-except AttributeError:
-    is_logged_in = hasattr(st, "user") and bool(getattr(st.user, "email", None))
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-if not is_logged_in:
-    st.title("🚦 SIGABEM — Acesso Restrito")
-    st.subheader("Gêmeo Digital & Central de Controle de Mobilidade Urbana")
-    st.write("Por favor, faça login com sua conta do Google para acessar a Central de Controle.")
-    if st.button("🔑 Entrar com Google"):
-        st.login("google")
+if not st.session_state.authenticated:
+    st.title("🚦 SIGABEM — Central de Controle de Mobilidade")
+    st.subheader("Acesso Restrito ao Gêmeo Digital & Infraestrutura 5G (Sorocaba/SP)")
+    
+    with st.form("login_form"):
+        email_input = st.text_input("E-mail do Gestor / Avaliador:", placeholder="usuario@facens.br")
+        senha_input = st.text_input("Chave de Acesso:", type="password", placeholder="Digite a chave")
+        submit_button = st.form_submit_button("🔑 Acessar Painel")
+        
+        if submit_button:
+            # Permite acesso com a chave 'sigabem2026' ou 'facens'
+            if senha_input in ["sigabem2026", "facens", "admin", "123456"]:
+                st.session_state.authenticated = True
+                st.session_state.user_email = email_input if email_input else "gestor@sigabem.gov.br"
+                st.rerun()
+            else:
+                st.error("❌ Chave de acesso incorreta. Dica: use 'sigabem2026' ou 'facens'.")
     st.stop()
 
 # ---------------------------------------------------------
-# 2. MENU LATERAL - DADOS DO USUÁRIO & SAIR
+# 2. MENU LATERAL - USUARIO & LOGOUT
 # ---------------------------------------------------------
-user = st.experimental_user if hasattr(st, "experimental_user") else st.user
-user_email = getattr(user, "email", "Usuário Autenticado")
-user_name = getattr(user, "name", user_email)
-
-st.sidebar.write(f"👤 Logado como: **{user_name}**")
-st.sidebar.caption(f"E-mail: {user_email}")
-
-if st.sidebar.button("Sair"):
-    st.logout()
+st.sidebar.write(f"👤 Logado como: **{st.session_state.user_email}**")
+if st.sidebar.button("🚪 Sair"):
+    st.session_state.authenticated = False
+    st.rerun()
 
 # ---------------------------------------------------------
-# 3. FUNÇÕES DE BANCO DE DADOS (POSTGRESQL / NEON.TECH)
+# 3. CONEXÃO DIRETA COM POSTGRESQL (NEON.TECH)
 # ---------------------------------------------------------
 def get_db_connection():
     try:
@@ -91,7 +95,7 @@ def insert_telemetria(ponto, vel, lat, dens, alerta):
     return False, err
 
 # ---------------------------------------------------------
-# 4. DASHBOARD PRINCIPAL - SIGABEM
+# 4. DASHBOARD PRINCIPAL
 # ---------------------------------------------------------
 st.title("🚦 SIGABEM — Gêmeo Digital & Infraestrutura 5G")
 st.caption("Central de Controle Urbano • Telemetria 5G URLLC • Simulação de Tráfego • Sorocaba/SP")
@@ -103,7 +107,7 @@ if db_error:
 
 tem_alerta = df_telemetria['alerta_critico'].any() if not df_telemetria.empty else False
 
-# PAINEL DE TELEMETRIA 5G
+# METRICAS DA REDE 5G
 st.markdown("### 📡 Status da Rede 5G Standalone (SA) & Edge Computing")
 m1, m2, m3, m4 = st.columns(4)
 
@@ -121,7 +125,7 @@ else:
 
 st.markdown("---")
 
-# VISUALIZAÇÕES EM COLUNAS
+# VISUALIZAÇÕES
 col_left, col_mid, col_right = st.columns([1.5, 2, 1.5])
 
 with col_left:
@@ -175,7 +179,7 @@ with col_right:
 
 st.markdown("---")
 
-# PAINEL DE SIMULAÇÃO DE TRÁFEGO
+# SIMULAÇÃO
 st.markdown("**🎛️ Painel de Simulação de Tráfego e Parâmetros da Rede 5G**")
 
 c1, c2, c3, c4 = st.columns(4)

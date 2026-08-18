@@ -16,26 +16,24 @@ st.set_page_config(
 # ---------------------------------------------------------
 # 1. CONTROLE DE ACESSO SIMPLIFICADO (SEM DEPENDÊNCIA DE API)
 # ---------------------------------------------------------
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-
 if not st.session_state.authenticated:
     st.title("🚦 SIGABEM — Central de Controle de Mobilidade")
-    st.subheader("Acesso Restrito ao Gêmeo Digital & Infraestrutura 5G (Sorocaba/SP)")
+    st.subheader("Acesso de demonstração acadêmica • Sorocaba/SP")
+    
+    st.caption("Use qualquer e-mail e a senha **SIGABEM** para entrar no ambiente de demonstração.")
     
     with st.form("login_form"):
-        email_input = st.text_input("E-mail do Gestor / Avaliador:", placeholder="usuario@gmail.com")
-        senha_input = st.text_input("Chave de Acesso:", type="password", placeholder="Digite a chave")
-        submit_button = st.form_submit_button("🔑 Acessar Painel")
+        email_input = st.text_input("E-mail:", placeholder="seu.email@exemplo.com")
+        senha_input = st.text_input("Senha de acesso:", type="password", placeholder="Digite a senha")
+        submit_button = st.form_submit_button("Acessar Painel")
         
         if submit_button:
-            # Aceita qualquer e-mail e a chave única "SIGABEM"
             if senha_input.strip().upper() == "SIGABEM":
                 st.session_state.authenticated = True
                 st.session_state.user_email = email_input if email_input else "gestor@sigabem.gov.br"
                 st.rerun()
             else:
-                st.error("❌ Chave de acesso incorreta. Use: **SIGABEM**")
+                st.error("Senha incorreta. Use: **SIGABEM**")
     st.stop()
 
 # ---------------------------------------------------------

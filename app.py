@@ -103,41 +103,46 @@ def insert_telemetria(ponto, vel, lat, dens, alerta):
     return False, err
 
 # ---------------------------------------------------------
-# 4. DASHBOARD PRINCIPAL
+# 4. DASHBOARD PRINCIPAL - MONITORAMENTO
 # ---------------------------------------------------------
-st.title("🚦 SIGABEM — Gêmeo Digital & Infraestrutura 5G")
-st.caption("Central de Controle Urbano • Telemetria 5G URLLC • Simulação de Tráfego • Sorocaba/SP")
+st.title("🚦 SIGABEM — Central de Controle de Mobilidade")
+st.caption("Centro de Controle Urbano • Sorocaba/SP • Modo Simulação")
 
 df_telemetria, db_error = fetch_telemetria()
 
 if db_error:
-    st.error(f"❌ **Erro de Conexão com o PostgreSQL (Neon):** `{db_error}`")
+    st.error(f"Erro de conexão com o banco de dados: `{db_error}`")
 
+# ---------- STATUS RÁPIDO ----------
+st.markdown("### Status Geral da Malha")
+
+col1, col2, col3, col4 = st.columns(4)
+
+latencia_media = round(df_telemetria['latencia_5g_ms'].mean(), 2) if not df_telemetria.empty else 1.5
+velocidade_media = round(df_telemetria['velocidade_media_kmh'].mean(), 1) if not df_telemetria.empty else 0.0
 tem_alerta = df_telemetria['alerta_critico'].any() if not df_telemetria.empty else False
+qtd_registros = len(df_telemetria) if not df_telemetria.empty else 0
 
-# METRICAS DA REDE 5G
-st.markdown("### 📡 Status da Rede 5G Standalone (SA) & Edge Computing")
-m1, m2, m3, m4 = st.columns(4)
+col1.metric("Estado da Malha", "Atenção" if tem_alerta else "Normal", delta="Monitoramento ativo")
+col2.metric("Velocidade Média", f"{velocidade_media} km/h")
+col3.metric("Latência (Simulada)", f"{latencia_media} ms")
+col4.metric("Registros no Sistema", qtd_registros)
 
-latencia_media_5g = round(df_telemetria['latencia_5g_ms'].mean(), 2) if not df_telemetria.empty else 0.0
-
-m1.metric(label="📶 Tecnologia de Conexão", value="5G Standalone (gNodeB)", delta="3.5 GHz Sub-6")
-m2.metric(label="⚡ Latência Média da Rede", value=f"{latencia_media_5g} ms", delta="URLLC Ativo" if latencia_media_5g < 5 else "Risco de Jitter")
-m3.metric(label="📊 Slice de Rede (Network Slicing)", value="URLLC / eMBB", delta="Prioridade Crítica")
-m4.metric(label="🖥️ Processamento na Borda (MEC)", value="Ativo - Sorocaba Node", delta="100% Sincronizado")
-
+# ---------- ALERTA / EVENTO CRÍTICO (espaço preparado) ----------
 if tem_alerta:
-    st.error("🚨 **CRITICAL ALERT 5G:** Congestionamento severo detectado no PostgreSQL! Acionando priorização de tráfego via corte de rede (Network Slice URLLC).")
+    st.error("⚠️ **EVENTO CRÍTICO DETECTADO** — Há corredor(es) com velocidade abaixo do esperado. Recomenda-se investigação.")
 else:
-    st.success("✅ **REDE 5G OPERACIONAL:** Latência ultra-baixa confirmada para o Gêmeo Digital.")
+    st.info("Nenhum evento crítico no momento. Monitoramento contínuo ativo.")
 
 st.markdown("---")
 
-# VISUALIZAÇÕES
-col_left, col_mid, col_right = st.columns([1.5, 2, 1.5])
+# ---------- VISÃO PRINCIPAL ----------
+st.markdown("### Visão da Malha Urbana")
+
+col_left, col_right = st.columns([1.6, 1.4])
 
 with col_left:
-    st.markdown("**🏢 Modelo 3D Urbano & Antenas 5G (gNodeB)**")
+    st.markdown("**Modelo 3D da Área Monitorada**")
     np.random.seed(42)
     n_b = 15
     bx = np.random.uniform(0, 10, n_b)
@@ -148,73 +153,63 @@ with col_left:
         go.Scatter3d(
             x=bx, y=by, z=bz,
             mode='markers+text',
-            marker=dict(size=12, color=bz, colorscale='Plasma', opacity=0.85, symbol='diamond'),
-            text=["Antena 5G" if i % 4 == 0 else f"Edifício {i}" for i in range(n_b)]
+            marker=dict(size=11, color=bz, colorscale='Plasma', opacity=0.85, symbol='diamond'),
+            text=["Antena" if i % 4 == 0 else f"Edifício {i}" for i in range(n_b)]
         )
     ])
-    fig_3d.update_layout(scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Altura (m)'), margin=dict(l=0, r=0, b=0, t=0), height=300)
+    fig_3d.update_layout(
+        scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Altura (m)'),
+        margin=dict(l=0, r=0, b=0, t=0),
+        height=340
+    )
     st.plotly_chart(fig_3d, use_container_width=True)
 
-with col_mid:
-    st.markdown("**🚥 Velocidade x Congestionamento nos Corredores**")
-    if not df_telemetria.empty:
-        fig_line = px.bar(
-            df_telemetria, x='ponto_corredor', y='velocidade_media_kmh', color='alerta_critico',
-            color_discrete_map={True: '#EF553B', False: '#00CC96'},
-            labels={'velocidade_media_kmh': 'Velocidade Média (km/h)', 'ponto_corredor': 'Célula 5G / Corredor'}
-        )
-        fig_line.update_layout(height=300, margin=dict(l=10, r=10, b=10, t=20))
-        st.plotly_chart(fig_line, use_container_width=True)
-    else:
-        st.info("Nenhum registro no Neon. Use o painel abaixo para simular e gravar dados.")
-
 with col_right:
-    st.markdown("**📈 Latência Comparativa: 5G URLLC vs 4G Legacy (ms)**")
+    st.markdown("**Velocidade por Corredor**")
     if not df_telemetria.empty:
-        df_comparativo = pd.DataFrame({
-            'Corredor': df_telemetria['ponto_corredor'],
-            'Latência 5G (ms)': df_telemetria['latencia_5g_ms'],
-            'Latência 4G Teórica (ms)': [l * 4.5 for l in df_telemetria['latencia_5g_ms']]
-        })
-        fig_comp = px.bar(
-            df_comparativo, x='Corredor', y=['Latência 5G (ms)', 'Latência 4G Teórica (ms)'],
-            barmode='group', labels={'value': 'Latência (ms)', 'variable': 'Tecnologia'}
+        fig_bar = px.bar(
+            df_telemetria,
+            x='ponto_corredor',
+            y='velocidade_media_kmh',
+            color='alerta_critico',
+            color_discrete_map={True: '#EF553B', False: '#00CC96'},
+            labels={'velocidade_media_kmh': 'Velocidade (km/h)', 'ponto_corredor': 'Corredor'}
         )
-        fig_comp.update_layout(height=300, margin=dict(l=10, r=10, b=10, t=20))
-        st.plotly_chart(fig_comp, use_container_width=True)
+        fig_bar.update_layout(height=340, margin=dict(l=10, r=10, b=10, t=20), showlegend=False)
+        st.plotly_chart(fig_bar, use_container_width=True)
     else:
-        st.info("Aguardando inserções para exibir gráficos de latência...")
+        st.info("Nenhum dado disponível. Use o painel de simulação abaixo.")
 
 st.markdown("---")
 
-# SIMULAÇÃO
-st.markdown("**🎛️ Painel de Simulação de Tráfego e Parâmetros da Rede 5G**")
+# ---------- SIMULAÇÃO (mantida, mas com linguagem mais limpa) ----------
+st.markdown("### Painel de Simulação")
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    ponto_sel = st.selectbox("Corredor / Antena 5G (gNodeB)", ["Av. Dom Aguirre (gNodeB_02)", "Av. Afonso Vergueiro (gNodeB_01)", "Av. Itavuvu (gNodeB_03)"])
+    ponto_sel = st.selectbox("Corredor", ["Av. Dom Aguirre (gNodeB_02)", "Av. Afonso Vergueiro (gNodeB_01)", "Av. Itavuvu (gNodeB_03)"])
 with c2:
     densidade = st.slider("Densidade de Veículos (veíc/km)", 20, 500, 180)
 with c3:
     tempo_verde = st.slider("Tempo do Semáforo Verde (s)", 15, 120, 45)
 with c4:
-    perfil_5g = st.select_slider("Fatia de Rede 5G (Network Slice)", ["URLLC (Ultra-Low Latency)", "eMBB (High Throughput)", "mMTC (IoT Density)"])
+    perfil_5g = st.select_slider("Cenário de Conectividade (Simulação)", ["URLLC (Baixa Latência)", "eMBB (Alta Capacidade)", "mMTC (Alta Densidade)"])
 
-if st.button("🚀 Simular e Persistir no PostgreSQL (Neon)"):
+if st.button("Simular e Registrar no Sistema"):
     vel_calculada = max(5.0, round(80.0 - (densidade * 0.15) + (tempo_verde * 0.2), 2))
-    lat_calculada = round(1.5 if perfil_5g == "URLLC (Ultra-Low Latency)" else (6.5 if perfil_5g == "eMBB (High Throughput)" else 15.0), 2)
+    lat_calculada = round(1.5 if "URLLC" in perfil_5g else (6.5 if "eMBB" in perfil_5g else 15.0), 2)
     critico = bool(vel_calculada < 15.0 or lat_calculada > 10.0)
     
     sucesso, err_msg = insert_telemetria(ponto_sel, vel_calculada, lat_calculada, densidade, critico)
     if sucesso:
-        st.toast(f"Gravado no Neon! Velocidade: {vel_calculada} km/h", icon="📡")
+        st.toast(f"Simulação registrada • Velocidade: {vel_calculada} km/h", icon="✅")
         time.sleep(0.8)
         st.rerun()
     else:
-        st.error(f"Erro ao gravar no PostgreSQL: {err_msg}")
+        st.error(f"Erro ao registrar: {err_msg}")
 
-with st.expander("📄 Ver Histórico Real Persistido no Neon.tech"):
+with st.expander("Ver histórico registrado"):
     if not df_telemetria.empty:
         st.dataframe(df_telemetria, use_container_width=True)
     else:
-        st.write("Nenhum registro encontrado no banco de dados Neon.")
+        st.write("Nenhum registro encontrado.")

@@ -6,7 +6,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Configuração da Página
+# ---------------------------------------------------------
+# Configuração da Página (sempre no topo)
+# ---------------------------------------------------------
 st.set_page_config(
     page_title="SIGABEM — Digital Twin & 5G Control",
     page_icon="📡",
@@ -14,8 +16,11 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# 1. CONTROLE DE ACESSO SIMPLIFICADO (SEM DEPENDÊNCIA DE API)
+# 1. CONTROLE DE ACESSO SIMPLIFICADO
 # ---------------------------------------------------------
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
 if not st.session_state.authenticated:
     st.title("🚦 SIGABEM — Central de Controle de Mobilidade")
     st.subheader("Acesso de demonstração acadêmica • Sorocaba/SP")

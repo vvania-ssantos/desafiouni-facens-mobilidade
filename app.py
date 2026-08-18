@@ -24,18 +24,18 @@ if not st.session_state.authenticated:
     st.subheader("Acesso Restrito ao Gêmeo Digital & Infraestrutura 5G (Sorocaba/SP)")
     
     with st.form("login_form"):
-        email_input = st.text_input("E-mail do Gestor / Avaliador:", placeholder="usuario@facens.br")
+        email_input = st.text_input("E-mail do Gestor / Avaliador:", placeholder="usuario@gmail.com")
         senha_input = st.text_input("Chave de Acesso:", type="password", placeholder="Digite a chave")
         submit_button = st.form_submit_button("🔑 Acessar Painel")
         
         if submit_button:
-            # Permite acesso com a chave 'sigabem2026' ou 'facens'
-            if senha_input in ["sigabem2026", "facens", "admin", "123456"]:
+            # Aceita qualquer e-mail e a chave única "SIGABEM"
+            if senha_input.strip().upper() == "SIGABEM":
                 st.session_state.authenticated = True
                 st.session_state.user_email = email_input if email_input else "gestor@sigabem.gov.br"
                 st.rerun()
             else:
-                st.error("❌ Chave de acesso incorreta. Dica: use 'sigabem2026' ou 'facens'.")
+                st.error("❌ Chave de acesso incorreta. Use: **SIGABEM**")
     st.stop()
 
 # ---------------------------------------------------------

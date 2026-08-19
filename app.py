@@ -143,18 +143,28 @@ col_left, col_right = st.columns([1.6, 1.4])
 
 with col_left:
     st.markdown("**Modelo 3D da Área Monitorada**")
-    np.random.seed(42)
-    n_b = 15
-    bx = np.random.uniform(0, 10, n_b)
-    by = np.random.uniform(0, 10, n_b)
-    bz = np.random.uniform(10, 60, n_b)
-    
+
+    # Lista de corredores com coordenadas fixas (simplificadas)
+    corredores = [
+        {"nome": "Av. Dom Aguirre (gNodeB_02)", "x": 2, "y": 8, "z": 20},
+        {"nome": "Av. Afonso Vergueiro (gNodeB_01)", "x": 5, "y": 3, "z": 25},
+        {"nome": "Av. Itavuvu (gNodeB_03)", "x": 8, "y": 6, "z": 30},
+    ]
+
     fig_3d = go.Figure(data=[
         go.Scatter3d(
-            x=bx, y=by, z=bz,
+            x=[c["x"] for c in corredores],
+            y=[c["y"] for c in corredores],
+            z=[c["z"] for c in corredores],
             mode='markers+text',
-            marker=dict(size=11, color=bz, colorscale='Plasma', opacity=0.85, symbol='diamond'),
-            text=["Antena" if i % 4 == 0 else f"Edifício {i}" for i in range(n_b)]
+            marker=dict(
+                size=12,
+                color=[c["z"] for c in corredores],
+                colorscale='Plasma',
+                opacity=0.85,
+                symbol='diamond'
+            ),
+            text=[c["nome"] for c in corredores]
         )
     ])
     fig_3d.update_layout(
@@ -179,8 +189,6 @@ with col_right:
         st.plotly_chart(fig_bar, use_container_width=True)
     else:
         st.info("Nenhum dado disponível. Use o painel de simulação abaixo.")
-
-st.markdown("---")
 
 # ---------- SIMULAÇÃO (mantida, mas com linguagem mais limpa) ----------
 st.markdown("### Painel de Simulação")

@@ -15,6 +15,7 @@ __pycache__/
 # Configurações locais do VS Code e ambiente
 .vscode/
 .env
+.streamlit/secrets.toml
 
 # Arquivos de banco locais e logs
 *.log

@@ -112,10 +112,10 @@ if "corredor_selecionado" not in st.session_state:
 if "evento_investigacao" not in st.session_state:
     st.session_state.evento_investigacao = False
 
-    def avancar_etapa(nova_etapa):
+def avancar_etapa(nova_etapa):
     st.session_state.etapa = nova_etapa
-    st.rerun()
-    
+    st.rerun()    
+
 # ---------------------------------------------------------
 # 4. DASHBOARD PRINCIPAL - MONITORAMENTO
 # ---------------------------------------------------------

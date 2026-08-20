@@ -102,25 +102,50 @@ def insert_telemetria(ponto, vel, lat, dens, alerta):
 # ---------------------------------------------------------
 # CONTROLE DA JORNADA — MALHAVIVA VR
 # ---------------------------------------------------------
+ETAPAS = [
+    ("monitoramento",     "👁",  "Monitoramento"),
+    ("evento_critico",    "⚠️",  "Evento"),
+    ("ativacao_vr",       "🥽",  "VR"),
+    ("investigacao",      "🔎",  "Investigação"),
+    ("analise_temporal",  "📈",  "Análise"),
+    ("simulacao",         "🧪",  "Simulação"),
+    ("decisao",           "✅",  "Decisão"),
+]
 
 if "etapa" not in st.session_state:
     st.session_state.etapa = "monitoramento"
-
 if "corredor_selecionado" not in st.session_state:
     st.session_state.corredor_selecionado = None
 
-if "evento_investigacao" not in st.session_state:
-    st.session_state.evento_investigacao = False
 
-def avancar_etapa(nova_etapa):
+def avancar_etapa(nova_etapa: str):
     st.session_state.etapa = nova_etapa
-    st.rerun()    
+    st.rerun()
+
+
+def barra_jornada():
+    chaves = [e[0] for e in ETAPAS]
+    idx_atual = chaves.index(st.session_state.etapa)
+    cols = st.columns(len(ETAPAS))
+    for i, (chave, icone, label) in enumerate(ETAPAS):
+        with cols[i]:
+            if i < idx_atual:
+                estilo = "opacity:0.45"
+            elif i == idx_atual:
+                estilo = "font-weight:700;border-bottom:3px solid #2ecc71"
+            else:
+                estilo = "opacity:0.25"
+            st.markdown(
+                f"<div style='text-align:center;{estilo}'>{icone}<br><small>{label}</small></div>",
+                unsafe_allow_html=True,
+            )   
 
 # ---------------------------------------------------------
 # 4. DASHBOARD PRINCIPAL - MONITORAMENTO
 # ---------------------------------------------------------
 st.title("🚦 SIGABEM — Central de Controle de Mobilidade")
 st.caption("Centro de Controle Urbano • Sorocaba/SP • Modo Simulação")
+barra_jornada()
 
 df_telemetria, db_error = fetch_telemetria()
 

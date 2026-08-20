@@ -99,7 +99,23 @@ def insert_telemetria(ponto, vel, lat, dens, alerta):
     except Exception as e:
         return False, str(e)
 
+# ---------------------------------------------------------
+# CONTROLE DA JORNADA — MALHAVIVA VR
+# ---------------------------------------------------------
 
+if "etapa" not in st.session_state:
+    st.session_state.etapa = "monitoramento"
+
+if "corredor_selecionado" not in st.session_state:
+    st.session_state.corredor_selecionado = None
+
+if "evento_investigacao" not in st.session_state:
+    st.session_state.evento_investigacao = False
+
+    def avancar_etapa(nova_etapa):
+    st.session_state.etapa = nova_etapa
+    st.rerun()
+    
 # ---------------------------------------------------------
 # 4. DASHBOARD PRINCIPAL - MONITORAMENTO
 # ---------------------------------------------------------

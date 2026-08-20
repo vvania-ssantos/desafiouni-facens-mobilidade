@@ -165,14 +165,33 @@ qtd_registros = len(df_telemetria) if not df_telemetria.empty else 0
 col1.metric("Estado da Malha", "Atenção" if tem_alerta else "Normal", delta="Monitoramento ativo")
 col2.metric("Velocidade Média", f"{velocidade_media} km/h")
 col3.metric("Latência (Simulada)", f"{latencia_media} ms")
-col4.metric("Registros no Sistema", qtd_registros)
-
-# ---------- ALERTA / EVENTO CRÍTICO (espaço preparado) ----------
+# ---------- ALERTA / EVENTO CRÍTICO ----------
 if tem_alerta:
     st.error("⚠️ **EVENTO CRÍTICO DETECTADO** — Há corredor(es) com velocidade abaixo do esperado. Recomenda-se investigação.")
+    if st.session_state.etapa == "monitoramento":
+        corredor_critico = df_telemetria[df_telemetria["alerta_critico"] == True]["ponto_corredor"].iloc[0]
+        if st.button("🔎 Investigar Evento Crítico"):
+            st.session_state.corredor_selecionado = corredor_critico
+            avancar_etapa("evento_critico")
 else:
     st.info("Nenhum evento crítico no momento. Monitoramento contínuo ativo.")
 
+# ---------- TELA: EVENTO CRÍTICO / ATIVAÇÃO VR ----------
+if st.session_state.etapa == "evento_critico":
+    st.markdown("## 🥽 MalhaViva VR")
+    st.caption("Modo de visualização especializada")
+    st.write("Um evento crítico foi detectado na malha urbana.")
+    st.markdown(f"**Corredor em atenção:** {st.session_state.corredor_selecionado}")
+    st.markdown("**Objetivo da investigação:** Localizar e analisar o ponto de congestionamento.")
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        if st.button("🥽 INICIAR MALHAVIVA VR"):
+            avancar_etapa("ativacao_vr")
+    with col_b:
+        if st.button("← Voltar ao Monitoramento"):
+            avancar_etapa("monitoramento")
+    st.stop()
+    
 st.markdown("---")
 
 # ---------- VISÃO PRINCIPAL ----------

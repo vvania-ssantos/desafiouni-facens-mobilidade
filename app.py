@@ -164,25 +164,13 @@ def construir_figura_3d(df_telemetria, altura=340):
     return fig
 
 
-def exibir_grafico_3d(fig, key, altura_mobile=300):
-    """Renderiza o gráfico 3D e aplica CSS para reduzir a altura e esconder a
-    barra de ferramentas em telas estreitas (celular), onde o gráfico 3D
-    completo costuma ficar espremido e difícil de manipular por toque."""
-    st.markdown(
-        f"""
-        <style>
-        @media (max-width: 640px) {{
-            div[data-testid="stPlotlyChart"] .js-plotly-plot {{
-                height: {altura_mobile}px !important;
-            }}
-            div[data-testid="stPlotlyChart"] .js-plotly-plot .plot-container {{
-                height: {altura_mobile}px !important;
-            }}
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+def exibir_grafico_3d(fig, key):
+    """Renderiza o gráfico 3D sem barra de ferramentas (que fica minúscula e
+    difícil de tocar em telas pequenas). A altura real já vem definida na
+    própria figura (parâmetro `altura` de construir_figura_3d) — não dá para
+    reduzi-la depois via CSS de página, porque o Plotly desenha o gráfico no
+    tamanho configurado internamente; tentar encolher só o contêiner por
+    fora deixa o gráfico cortado/espremido em vez de menor de verdade."""
     st.plotly_chart(
         fig,
         width='stretch',
@@ -272,8 +260,8 @@ if st.session_state.etapa == "ativacao_vr":
     st.markdown("## 🥽 MalhaViva VR — Modo Imersivo")
     st.caption(f"Corredor em investigação: **{st.session_state.corredor_selecionado}**")
 
-    fig_vr = construir_figura_3d(df_telemetria, altura=650)
-    exibir_grafico_3d(fig_vr, key="grafico_vr_imersivo", altura_mobile=340)
+    fig_vr = construir_figura_3d(df_telemetria, altura=420)
+    exibir_grafico_3d(fig_vr, key="grafico_vr_imersivo")
     st.caption(
         "Posição X/Y é apenas layout ilustrativo (sem coordenadas GPS no dataset atual). "
         "Altura, cor e valores no hover vêm da telemetria real mais recente do banco."
@@ -695,7 +683,7 @@ col_left, col_right = st.columns([1.6, 1.4])
 with col_left:
     st.markdown("**Modelo 3D — Estado Atual dos Corredores (dados reais do banco)**")
     fig_3d = construir_figura_3d(df_telemetria)
-    exibir_grafico_3d(fig_3d, key="grafico_3d_dashboard", altura_mobile=260)
+    exibir_grafico_3d(fig_3d, key="grafico_3d_dashboard")
     st.caption(
         "Posição X/Y é apenas layout ilustrativo (sem coordenadas GPS no dataset atual). "
         "Altura, cor e valores no hover vêm da telemetria real mais recente do banco."

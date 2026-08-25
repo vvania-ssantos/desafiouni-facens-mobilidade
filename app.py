@@ -58,10 +58,6 @@ if st.sidebar.button("🚪 Sair"):
 # ---------------------------------------------------------
 # 3. CONEXÃO COM POSTGRESQL (NEON.TECH) — COM CACHE
 # ---------------------------------------------------------
-# st.cache_resource mantém UMA conexão viva entre reruns do Streamlit,
-# em vez de abrir uma conexão nova a cada clique/rerun. Isso evita
-# estourar o limite de conexões simultâneas do plano free do Neon
-# durante uma apresentação ao vivo.
 @st.cache_resource
 def get_db_engine():
     conn_str = (
@@ -72,9 +68,6 @@ def get_db_engine():
     return create_engine(conn_str, pool_pre_ping=True, connect_args={"connect_timeout": 10})
 
 
-# st.cache_data guarda o resultado da query por alguns segundos (ttl).
-# Assim, vários widgets/reruns na mesma janela de tempo não disparam
-# uma query nova a cada um — só depois que o ttl expira ou os dados mudam.
 @st.cache_data(ttl=15)
 def fetch_telemetria():
     try:
@@ -101,22 +94,12 @@ def insert_telemetria(ponto, vel, lat, dens, alerta):
         return False, str(e)
 
 
-# ---------------------------------------------------------
-# 3.1 MOTOR DE CÁLCULO DA SIMULAÇÃO — FUNÇÃO REUTILIZÁVEL
-# ---------------------------------------------------------
-# Extraído do Painel de Simulação original para ser usado também
-# na tela comparativa da Etapa 6 (Simulação), sem duplicar a fórmula.
 def calcular_simulacao(densidade, tempo_verde, perfil_5g):
     vel_calculada = max(5.0, round(80.0 - (densidade * 0.15) + (tempo_verde * 0.2), 2))
     lat_calculada = round(1.5 if "URLLC" in perfil_5g else (6.5 if "eMBB" in perfil_5g else 15.0), 2)
     critico = bool(vel_calculada < 15.0 or lat_calculada > 10.0)
     return vel_calculada, lat_calculada, critico
 
-# ---------------------------------------------------------
-# 3.2 GRÁFICO 3D — FUNÇÃO REUTILIZÁVEL
-# ---------------------------------------------------------
-# Extraído da antiga seção "VISÃO PRINCIPAL" para poder ser chamado
-# tanto no dashboard padrão quanto na tela cheia de Ativação VR.
 LAYOUT_POSICOES = {
     "Av. Dom Aguirre (gNodeB_02)": (2, 8),
     "Av. Afonso Vergueiro (gNodeB_01)": (5, 3),
@@ -168,15 +151,45 @@ def construir_figura_3d(df_telemetria, altura=340):
         )
     ])
     fig.update_layout(
-        scene=dict(xaxis_title='X (layout)', yaxis_title='Y (layout)', zaxis_title='Velocidade média (km/h)'),
+        scene=dict(
+            xaxis_title='X (layout)', yaxis_title='Y (layout)', zaxis_title='Velocidade média (km/h)',
+            # Câmera fixa num ângulo isométrico legível — sem isso, o Plotly abre
+            # com um ângulo padrão que costuma ficar ruim em telas pequenas até
+            # o usuário arrastar manualmente para ajustar.
+            camera=dict(eye=dict(x=1.4, y=1.4, z=1.1)),
+        ),
         margin=dict(l=0, r=0, b=0, t=0),
         height=altura
     )
     return fig
 
-# ---------------------------------------------------------
-# CONTROLE DA JORNADA — MALHAVIVA VR
-# ---------------------------------------------------------
+
+def exibir_grafico_3d(fig, key, altura_mobile=300):
+    """Renderiza o gráfico 3D e aplica CSS para reduzir a altura e esconder a
+    barra de ferramentas em telas estreitas (celular), onde o gráfico 3D
+    completo costuma ficar espremido e difícil de manipular por toque."""
+    st.markdown(
+        f"""
+        <style>
+        @media (max-width: 640px) {{
+            div[data-testid="stPlotlyChart"] .js-plotly-plot {{
+                height: {altura_mobile}px !important;
+            }}
+            div[data-testid="stPlotlyChart"] .js-plotly-plot .plot-container {{
+                height: {altura_mobile}px !important;
+            }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.plotly_chart(
+        fig,
+        width='stretch',
+        key=key,
+        config={"displayModeBar": False, "responsive": True},
+    )
+
 ETAPAS = [
     ("monitoramento",     "👁",  "Monitoramento"),
     ("evento_critico",    "⚠️",  "Evento"),
@@ -231,9 +244,6 @@ def barra_jornada():
                 unsafe_allow_html=True,
             )
 
-# ---------------------------------------------------------
-# 4. CABEÇALHO + JORNADA (sempre visíveis, em toda etapa)
-# ---------------------------------------------------------
 st.title("🚦 SIGABEM — Central de Controle de Mobilidade")
 st.caption("Centro de Controle Urbano • Sorocaba/SP • Modo Simulação")
 barra_jornada()
@@ -243,14 +253,27 @@ df_telemetria, db_error = fetch_telemetria()
 if db_error:
     st.error(f"Erro de conexão com o banco de dados: `{db_error}`")
 
-# ---------- TELA: ATIVAÇÃO VR (tela cheia — roda ANTES do Status ----------
-# Geral e do banner de alerta para não aparecer misturado com eles) ----------
+if st.session_state.etapa == "evento_critico":
+    st.markdown("## 🥽 MalhaViva VR")
+    st.caption("Modo de visualização especializada")
+    st.write("Um evento crítico foi detectado na malha urbana.")
+    st.markdown(f"**Corredor em atenção:** {st.session_state.corredor_selecionado}")
+    st.markdown("**Objetivo da investigação:** Localizar e analisar o ponto de congestionamento.")
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        if st.button("🥽 INICIAR MALHAVIVA VR"):
+            avancar_etapa("ativacao_vr")
+    with col_b:
+        if st.button("← Voltar ao Monitoramento"):
+            avancar_etapa("monitoramento")
+    st.stop()
+
 if st.session_state.etapa == "ativacao_vr":
     st.markdown("## 🥽 MalhaViva VR — Modo Imersivo")
     st.caption(f"Corredor em investigação: **{st.session_state.corredor_selecionado}**")
 
     fig_vr = construir_figura_3d(df_telemetria, altura=650)
-    st.plotly_chart(fig_vr, use_container_width=True, key="grafico_vr_imersivo")
+    exibir_grafico_3d(fig_vr, key="grafico_vr_imersivo", altura_mobile=340)
     st.caption(
         "Posição X/Y é apenas layout ilustrativo (sem coordenadas GPS no dataset atual). "
         "Altura, cor e valores no hover vêm da telemetria real mais recente do banco."
@@ -265,7 +288,6 @@ if st.session_state.etapa == "ativacao_vr":
             avancar_etapa("monitoramento")
     st.stop()
 
-# ---------- TELA: INVESTIGAÇÃO (tela cheia — Etapa 4) ----------
 if st.session_state.etapa == "investigacao":
     st.markdown("## 🔎 Investigação do Corredor")
     st.caption(f"Corredor sob investigação: **{st.session_state.corredor_selecionado}**")
@@ -277,7 +299,6 @@ if st.session_state.etapa == "investigacao":
     else:
         linha_corredor = pd.DataFrame()
 
-    # ---------- CARDS COM OS NÚMEROS ATUAIS DO CORREDOR ----------
     st.markdown("### Diagnóstico Atual")
     col1, col2, col3 = st.columns(3)
 
@@ -294,7 +315,6 @@ if st.session_state.etapa == "investigacao":
 
     st.markdown("---")
 
-    # ---------- COMPARATIVO COM OS DEMAIS CORREDORES ----------
     st.markdown("### Comparativo com os Demais Corredores")
     if not df_telemetria.empty:
         resumo_comparativo = (
@@ -314,13 +334,12 @@ if st.session_state.etapa == "investigacao":
             labels={"velocidade_media_kmh": "Velocidade (km/h)", "ponto_corredor": "Corredor"},
         )
         fig_comparativo.update_layout(height=320, margin=dict(l=10, r=10, b=10, t=20), showlegend=False)
-        st.plotly_chart(fig_comparativo, use_container_width=True, key="grafico_comparativo_investigacao")
+        st.plotly_chart(fig_comparativo, width='stretch', key="grafico_comparativo_investigacao")
     else:
         st.info("Sem dados suficientes para comparação no momento.")
 
     st.markdown("---")
 
-    # ---------- REGISTRO DA CAUSA PROVÁVEL ----------
     st.markdown("### Registrar Causa Provável")
     st.session_state.causa_provavel = st.selectbox(
         "Qual a causa provável da anomalia?",
@@ -343,7 +362,6 @@ if st.session_state.etapa == "investigacao":
             avancar_etapa("ativacao_vr")
     st.stop()
 
-# ---------- TELA: ANÁLISE TEMPORAL (tela cheia — Etapa 5) ----------
 if st.session_state.etapa == "analise_temporal":
     st.markdown("## 📈 Análise Temporal")
     st.caption(f"Corredor em análise: **{st.session_state.corredor_selecionado}**")
@@ -354,8 +372,6 @@ if st.session_state.etapa == "analise_temporal":
         historico = df_telemetria[
             df_telemetria["ponto_corredor"] == st.session_state.corredor_selecionado
         ].copy()
-        # os registros vêm mais recentes primeiro (ORDER BY timestamp DESC na query);
-        # aqui invertemos para ordem cronológica, do mais antigo para o mais recente
         historico = historico.sort_values("timestamp", ascending=True)
     else:
         historico = pd.DataFrame()
@@ -394,7 +410,7 @@ if st.session_state.etapa == "analise_temporal":
             row=3, col=1,
         )
         fig_temporal.update_layout(height=650, showlegend=False, margin=dict(l=10, r=10, b=10, t=40))
-        st.plotly_chart(fig_temporal, use_container_width=True, key="grafico_temporal")
+        st.plotly_chart(fig_temporal, width='stretch', key="grafico_temporal")
         st.caption(
             "As três métricas compartilham o eixo do tempo — útil para ver se a queda de "
             "velocidade coincide com o aumento de densidade ou de latência."
@@ -409,7 +425,6 @@ if st.session_state.etapa == "analise_temporal":
             avancar_etapa("investigacao")
     st.stop()
 
-# ---------- TELA: SIMULAÇÃO COMPARATIVA (tela cheia — Etapa 6, NOVO) ----------
 if st.session_state.etapa == "simulacao":
     st.markdown("## 🧪 Simulação — Atual vs. Cenário Proposto")
     st.caption(f"Corredor em simulação: **{st.session_state.corredor_selecionado}**")
@@ -484,7 +499,7 @@ if st.session_state.etapa == "simulacao":
         go.Bar(name="Simulado", x=["Velocidade (km/h)"], y=[vel_simulada], marker_color="#00CC96"),
     ])
     fig_sim_bar.update_layout(height=300, margin=dict(l=10, r=10, b=10, t=20), barmode="group")
-    st.plotly_chart(fig_sim_bar, use_container_width=True, key="grafico_simulacao_comparativa")
+    st.plotly_chart(fig_sim_bar, width='stretch', key="grafico_simulacao_comparativa")
 
     col_a, col_b = st.columns([1, 1])
     with col_a:
@@ -495,7 +510,6 @@ if st.session_state.etapa == "simulacao":
             avancar_etapa("analise_temporal")
     st.stop()
 
-# ---------- TELA: DECISÃO OPERACIONAL (tela cheia — Etapa 7) ----------
 if st.session_state.etapa == "decisao":
     st.markdown("## ✅ Decisão Operacional")
     st.caption(f"Corredor em decisão: **{st.session_state.corredor_selecionado}**")
@@ -508,7 +522,6 @@ if st.session_state.etapa == "decisao":
             avancar_etapa("simulacao")
         st.stop()
 
-    # ---------- 1. RESUMO DO PROBLEMA ----------
     st.markdown("### 1. Resumo do Problema")
     col1, col2 = st.columns(2)
 
@@ -529,7 +542,6 @@ if st.session_state.etapa == "decisao":
 
     st.markdown("---")
 
-    # ---------- 2. ESTADO ATUAL × CENÁRIO ESCOLHIDO ----------
     st.markdown("### 2. Estado Atual × Cenário Escolhido")
 
     if not df_telemetria.empty and st.session_state.corredor_selecionado:
@@ -585,7 +597,6 @@ if st.session_state.etapa == "decisao":
 
     st.markdown("---")
 
-    # ---------- 3. RESULTADO DA SIMULAÇÃO ----------
     st.markdown("### 3. Resultado da Simulação")
 
     if resultado["alerta_critico"]:
@@ -595,7 +606,6 @@ if st.session_state.etapa == "decisao":
 
     st.markdown("---")
 
-    # ---------- 4. DECISÃO OPERACIONAL ----------
     st.markdown("### 4. Decisão Operacional")
 
     if st.session_state.decisao_registrada:
@@ -617,7 +627,7 @@ if st.session_state.etapa == "decisao":
         with col_a:
             if st.button(
                 "✅ APROVAR CENÁRIO",
-                use_container_width=True,
+                width='stretch',
                 disabled=st.session_state.decisao_registrada,
             ):
                 sucesso, err_msg = insert_telemetria(
@@ -640,14 +650,13 @@ if st.session_state.etapa == "decisao":
         with col_b:
             if st.button(
                 "↩️ REJEITAR / VOLTAR À SIMULAÇÃO",
-                use_container_width=True,
+                width='stretch',
             ):
                 st.session_state.decisao_registrada = False
                 avancar_etapa("simulacao")
 
     st.stop()
 
-# ---------- STATUS RÁPIDO ----------
 st.markdown("### Status Geral da Malha")
 
 col1, col2, col3, col4 = st.columns(4)
@@ -660,36 +669,25 @@ qtd_registros = len(df_telemetria) if not df_telemetria.empty else 0
 col1.metric("Estado da Malha", "Atenção" if tem_alerta else "Normal", delta="Monitoramento ativo")
 col2.metric("Velocidade Média", f"{velocidade_media} km/h")
 col3.metric("Latência (Simulada)", f"{latencia_media} ms")
-# ---------- ALERTA / EVENTO CRÍTICO ----------
 if tem_alerta:
     st.error("⚠️ **EVENTO CRÍTICO DETECTADO** — Há corredor(es) com velocidade abaixo do esperado. Recomenda-se investigação.")
     if st.session_state.etapa == "monitoramento":
         corredor_critico = df_telemetria[df_telemetria["alerta_critico"] == True]["ponto_corredor"].iloc[0]
         if st.button("🔎 Investigar Evento Crítico"):
+            # Reinicia o estado da investigação anterior, para que uma segunda
+            # rodada de demonstração (outro corredor) não herde causa provável,
+            # observação, resultado de simulação ou decisão já registrada.
             st.session_state.corredor_selecionado = corredor_critico
+            st.session_state.causa_provavel = None
+            st.session_state.observacao_investigacao = ""
+            st.session_state.simulacao_resultado = None
+            st.session_state.decisao_registrada = False
             avancar_etapa("evento_critico")
 else:
     st.info("Nenhum evento crítico no momento. Monitoramento contínuo ativo.")
 
-# ---------- TELA: EVENTO CRÍTICO ----------
-if st.session_state.etapa == "evento_critico":
-    st.markdown("## 🥽 MalhaViva VR")
-    st.caption("Modo de visualização especializada")
-    st.write("Um evento crítico foi detectado na malha urbana.")
-    st.markdown(f"**Corredor em atenção:** {st.session_state.corredor_selecionado}")
-    st.markdown("**Objetivo da investigação:** Localizar e analisar o ponto de congestionamento.")
-    col_a, col_b = st.columns([1, 1])
-    with col_a:
-        if st.button("🥽 INICIAR MALHAVIVA VR"):
-            avancar_etapa("ativacao_vr")
-    with col_b:
-        if st.button("← Voltar ao Monitoramento"):
-            avancar_etapa("monitoramento")
-    st.stop()
-
 st.markdown("---")
 
-# ---------- VISÃO PRINCIPAL ----------
 st.markdown("### Visão da Malha Urbana")
 
 col_left, col_right = st.columns([1.6, 1.4])
@@ -697,7 +695,7 @@ col_left, col_right = st.columns([1.6, 1.4])
 with col_left:
     st.markdown("**Modelo 3D — Estado Atual dos Corredores (dados reais do banco)**")
     fig_3d = construir_figura_3d(df_telemetria)
-    st.plotly_chart(fig_3d, use_container_width=True, key="grafico_3d_dashboard")
+    exibir_grafico_3d(fig_3d, key="grafico_3d_dashboard", altura_mobile=260)
     st.caption(
         "Posição X/Y é apenas layout ilustrativo (sem coordenadas GPS no dataset atual). "
         "Altura, cor e valores no hover vêm da telemetria real mais recente do banco."
@@ -715,13 +713,12 @@ with col_right:
             labels={'velocidade_media_kmh': 'Velocidade (km/h)', 'ponto_corredor': 'Corredor'}
         )
         fig_bar.update_layout(height=340, margin=dict(l=10, r=10, b=10, t=20), showlegend=False)
-        st.plotly_chart(fig_bar, use_container_width=True, key="grafico_barras_dashboard")
+        st.plotly_chart(fig_bar, width='stretch', key="grafico_barras_dashboard")
     else:
         st.info("Nenhum dado disponível. Use o painel de simulação abaixo.")
 
 st.markdown("---")
 
-# ---------- SIMULAÇÃO (mantida, mas com linguagem mais limpa) ----------
 st.markdown("### Painel de Simulação")
 
 c1, c2, c3, c4 = st.columns(4)
@@ -740,7 +737,7 @@ if st.button("Simular e Registrar no Sistema"):
     sucesso, err_msg = insert_telemetria(ponto_sel, vel_calculada, lat_calculada, densidade, critico)
     if sucesso:
         st.toast(f"Simulação registrada • Velocidade: {vel_calculada} km/h", icon="✅")
-        fetch_telemetria.clear()  # invalida o cache pra próxima leitura já vir atualizada
+        fetch_telemetria.clear()
         time.sleep(0.8)
         st.rerun()
     else:
@@ -748,6 +745,6 @@ if st.button("Simular e Registrar no Sistema"):
 
 with st.expander("Ver histórico registrado"):
     if not df_telemetria.empty:
-        st.dataframe(df_telemetria, use_container_width=True)
+        st.dataframe(df_telemetria, width='stretch')
     else:
         st.write("Nenhum registro encontrado.")
